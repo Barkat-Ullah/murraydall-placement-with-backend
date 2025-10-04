@@ -35,7 +35,7 @@ export const rootHandler = (
 
     //fun facts
   const data = {
-    message: `🚀 Welcome to this project. Server is running on port ${config.port}`,
+    message: `🚀 Welcome to the Murrydall projects. Server is running on port ${config.port}`,
     version: '1.0.0',
     clientDetails: {
       ipAddress: clientIp,

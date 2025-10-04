@@ -47,9 +47,7 @@ const auth = <T extends readonly (UserRoleEnum | 'ANY')[]>(
       if (user.isDeleted) {
         throw new AppError(httpStatus.UNAUTHORIZED, 'You are deleted !');
       }
-      // if (!user.isApproved) {
-      //   throw new AppError(httpStatus.UNAUTHORIZED, 'You are not approved by admin!');
-      // }
+     
       if (!user.isEmailVerified) {
         throw new AppError(httpStatus.UNAUTHORIZED, 'You are not verified!');
       }

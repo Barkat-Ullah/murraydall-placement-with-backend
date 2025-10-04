@@ -20,7 +20,6 @@ const getAllUsersFromDB = async (query: any) => {
     .fields()
     .exclude()
     .paginate()
-    .include({ subscription: true })
     .execute();
   return result;
 };
@@ -41,8 +40,6 @@ const getMyProfileFromDB = async (id: string) => {
       city: true,
       address: true,
       profile: true,
-      clientInfo:true
-  
     },
   });
 
@@ -52,15 +49,6 @@ const getMyProfileFromDB = async (id: string) => {
 const getUserDetailsFromDB = async (id: string) => {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id },
-    // select: {
-    //   id: true,
-    //   fullName: true,
-    //   email: true,
-    //   role: true,
-    //   createdAt: true,
-    //   updatedAt: true,
-    //   profile: true,
-    // },
   });
   return user;
 };
@@ -103,6 +91,7 @@ const updateMyProfileIntoDB = async (
   payload: Partial<User>,
 ) => {
   delete payload.email;
+  delete payload.role;
 
   const result = await prisma.user.update({
     where: {
@@ -153,7 +142,7 @@ const updateUserStatus = async (id: string, status: UserStatus) => {
   return result;
 };
 const updateUserApproval = async (userId: string) => {
-  console.log(userId)
+  console.log(userId);
   // const user = await prisma.user.findUnique({
   //   where: { id: userId },
   //   select: {
@@ -188,46 +177,32 @@ const softDeleteUserIntoDB = async (id: string) => {
   return result;
 };
 const hardDeleteUserIntoDB = async (id: string, adminId: string) => {
-  // const adminUser = await prisma.user.findUnique({
-  //   where: {
-  //     id: adminId,
-  //     role: UserRoleEnum.ADMIN,
-  //   },
-  // });
-  // if (!adminUser) {
-  //   throw new AppError(httpStatus.UNAUTHORIZED, 'You are not a admin');
-  // }
+  const adminUser = await prisma.user.findUnique({
+    where: {
+      id: adminId,
+      role: UserRoleEnum.ADMIN,
+    },
+  });
+  if (!adminUser) {
+    throw new AppError(httpStatus.UNAUTHORIZED, 'You are not a admin');
+  }
 
-  // return await prisma.$transaction(
-  //   async tx => {
-  //     // related tables delete
-  //     await tx.goal.deleteMany({ where: { userId: id } });
-  //     await tx.message.deleteMany({ where: { senderId: id } });
-  //     await tx.message.deleteMany({ where: { receiverId: id } });
-  //     await tx.payment.deleteMany({ where: { userId: id } });
-  //     await tx.motivation.deleteMany({ where: { userId: id } });
-  //     await tx.notificationUser.deleteMany({ where: { userId: id } });
-  //     await tx.vision.deleteMany({ where: { userId: id } });
-  //     await tx.community.deleteMany({ where: { userId: id } });
-  //     await tx.communityMembers.deleteMany({ where: { userId: id } });
-  //     await tx.follow.deleteMany({
-  //       where: {
-  //         OR: [{ followerId: id }, { followingId: id }],
-  //       },
-  //     });
+  return await prisma.$transaction(
+    async tx => {
+      await tx.payment.deleteMany({ where: { userId: id } });
 
-  //     const deletedUser = await tx.user.delete({
-  //       where: { id },
-  //       select: { id: true, email: true },
-  //     });
+      const deletedUser = await tx.user.delete({
+        where: { id },
+        select: { id: true, email: true },
+      });
 
-  //     return deletedUser;
-  //   },
-  //   {
-  //     timeout: 20000,
-  //     maxWait: 5000,
-  //   },
-  // );
+      return deletedUser;
+    },
+    {
+      timeout: 20000,
+      maxWait: 5000,
+    },
+  );
 };
 
 export const UserServices = {

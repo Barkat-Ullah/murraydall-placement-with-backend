@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import config from '../../config';
 export const generateOtpEmail = (otp: number) => {
   return `
       <div style="font-family: Arial, sans-serif; color: #333; padding: 30px; background: linear-gradient(135deg, #6c63ff, #3f51b5); border-radius: 8px;">
@@ -33,26 +34,32 @@ export const generateOtpEmail = (otp: number) => {
 const emailSender = async (to: string, html: string, subject: string) => {
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: 2525,
+      host: 'smtp.gmail.com',
+      port: 587,
       secure: false,
       auth: {
-        user: '88803c001@smtp-brevo.com',
-        pass: 'OzqM8PBhVxbNYEUt',
+        user: config.mail,
+        pass: config.mail_password,
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
+
     const mailOptions = {
-      from: '<akonhasan680@gmail.com>',
-      to,
+      from: '"Murrydull" <barkatullah585464@gmail.com>',
+      to, 
       subject,
-      text: html.replace(/<[^>]+>/g, ''),
       html,
     };
-    // Send the email
+
     const info = await transporter.sendMail(mailOptions);
+    
     return info.messageId;
   } catch (error) {
+    console.error('Email sending failed:', error); 
     throw new Error('Failed to send email. Please try again later.');
   }
 };
+
 export default emailSender;

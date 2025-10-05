@@ -1,229 +1,164 @@
-// import httpStatus from 'http-status';
-// import AppError from '../errors/AppError';
-// import catchAsync from './catchAsync';
-// import sendResponse from './sendResponse';
-// import Stripe from 'stripe';
-// import config from '../../config';
-// import { prisma } from './prisma';
-// import { stripe } from './stripe';
-// import { PaymentStatus, SubscriptionType } from '@prisma/client';
+// Updated webhook handler in your payment controller or utils (integrate into existing StripeWebHook)
+import httpStatus from 'http-status';
+import AppError from '../errors/AppError';
+import catchAsync from './catchAsync';
+import sendResponse from './sendResponse';
+import Stripe from 'stripe';
+import config from '../../config';
+import { prisma } from './prisma';
+import { stripe } from './stripe';
+import { PaymentStatus } from '@prisma/client';
 
-// export const StripeWebHook = catchAsync(async (req, res) => {
-//   const sig = req.headers['stripe-signature'];
-//   if (!sig) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'Missing Stripe signature');
-//   }
+export const StripeWebHook = catchAsync(async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  if (!sig) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Missing Stripe signature');
+  }
 
-//   const result = await StripeHook(req.body, sig);
-//   sendResponse(res, {
-//     statusCode: httpStatus.OK,
-//     message: 'Webhook processed successfully',
-//     data: result,
-//   });
-// });
+  const result = await StripeHook(req.body, sig);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    message: 'Webhook processed successfully',
+    data: result,
+  });
+});
 
-// const StripeHook = async (
-//   rawBody: Buffer,
-//   signature: string | string[] | undefined,
-// ) => {
-//   let event: Stripe.Event;
+const StripeHook = async (
+  rawBody: Buffer,
+  signature: string | string[] | undefined,
+) => {
+  let event: Stripe.Event;
 
-//   try {
-//     event = stripe.webhooks.constructEvent(
-//       rawBody,
-//       signature as string,
-//       config.stripe.stripe_webhook as string,
-//     );
-//   } catch (err) {
-//     throw new AppError(
-//       httpStatus.BAD_REQUEST,
-//       `Webhook signature verification failed: ${(err as Error).message}`,
-//     );
-//   }
+  try {
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      signature as string,
+      config.stripe.stripe_webhook as string,
+    );
+  } catch (err) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Webhook signature verification failed: ${(err as Error).message}`,
+    );
+  }
 
-//   switch (event.type) {
-//     case 'payment_intent.succeeded': {
-//       const paymentIntent = event.data.object as Stripe.PaymentIntent;
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-//       // Try to find a payment record first
-//       const existingPayment = await prisma.payment.findUnique({
-//         where: { stripePaymentId: paymentIntent.id },
-//         select: { userId: true, subscriptionId: true },
-//       });
+      // Find and update payment
+      const existingPayment = await prisma.payment.findUnique({
+        where: { stripePaymentId: paymentIntent.id },
+        include: { user: true },
+      });
 
-//       if (existingPayment) {
-//         await prisma.payment.update({
-//           where: { stripePaymentId: paymentIntent.id },
-//           data: {
-//             status: PaymentStatus.SUCCESS,
-//             amount: paymentIntent.amount,
-//             stripeCustomerId: paymentIntent.customer as string,
-//           },
-//         });
-//       } else {
-//         console.log(
-//           `No payment record found for PaymentIntent ${paymentIntent.id}`,
-//         );
-//       }
-//       break;
-//     }
+      if (existingPayment) {
+        await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            status: PaymentStatus.SUCCESS,
+            amount: paymentIntent.amount / 100, // Convert cents to dollars
+            stripeCustomerId: paymentIntent.customer as string,
+          },
+        });
 
-//     case 'invoice.payment_succeeded': {
-//       const invoice = event.data.object as Stripe.Invoice;
-//       const stripeSubscriptionId = invoice.subscription as string | null;
-//       const stripeCustomerId = invoice.customer as string | null;
+        // Unlock premium if not already (one-time)
+        const user = existingPayment.user;
+        if (user && !user.hasPremiumAccess) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { hasPremiumAccess: true },
+          });
+          console.log(`Premium access unlocked for user ${user.id}`);
+        }
+      } else {
+        console.log(
+          `No payment record found for PaymentIntent ${paymentIntent.id}`,
+        );
+      }
+      break;
+    }
 
-//       if (!stripeSubscriptionId) {
-//         console.log('Invoice has no subscription ID, skipping.');
-//         break;
-//       }
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await handleCheckoutSessionCompleted(session);
+      break;
+    }
 
-//       // 1. Find the local Payment record using the saved Stripe Subscription ID
-//       const existingPayment = await prisma.payment.findUnique({
-//         where: { stripeSubscriptionId: stripeSubscriptionId },
-//         select: { id: true, userId: true, subscriptionId: true },
-//       });
+    case 'checkout.session.expired': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await handleCheckoutSessionCanceled(session);
+      break;
+    }
 
-//       // **CRITICAL: The logic goes HERE**
-//       if (existingPayment) {
-//         // 2. Fetch the actual subscription details for duration
-//         const subscription = await prisma.subscription.findUnique({
-//           where: { id: existingPayment.subscriptionId },
-//         });
+    // Other cases (invoice, failed) as in your existing code
+    default:
+      console.log('Unhandled Stripe event type:', event.type);
+      return { status: 'unhandled_event', type: event.type };
+  }
+};
 
-//         if (subscription) {
-//           // 3. Update User's subscription dates (This assumes the payment confirms the active subscription)
-//           const startDate = new Date();
-//           const endDate = new Date();
+// Updated handleCheckoutSessionCompleted (for one-time checkout)
+const handleCheckoutSessionCompleted = async (
+  session: Stripe.Checkout.Session,
+) => {
+  const userId = session.metadata?.userId; // From metadata when creating session
+  if (!userId) {
+    console.log('No userId in session metadata, skipping unlock');
+    return;
+  }
 
-//           if (subscription.subscriptionType === SubscriptionType.MONTHLY) {
-//             endDate.setMonth(endDate.getMonth() + subscription.duration);
-//           } else if (
-//             subscription.subscriptionType === SubscriptionType.YEARLY
-//           ) {
-//             endDate.setFullYear(endDate.getFullYear() + subscription.duration);
-//           }
+  // Find payment record by session ID
+  const payment = await prisma.payment.findUnique({
+    where: { stripeSessionId: session.id },
+    include: { user: true },
+  });
 
-//           await prisma.user.update({
-//             where: { id: existingPayment.userId },
-//             data: {
-//               subscriptionStart: startDate,
-//               subscriptionEnd: endDate,
-//               // Optionally: store Stripe Customer ID on User if needed
-//               stripeCustomerId: stripeCustomerId,
-//             },
-//           });
+  if (!payment) {
+    console.log(`No payment record for session ${session.id}`);
+    return;
+  }
 
-//           // 4. Update the Payment record status (Now existingPayment.id is available)
-//           await prisma.payment.update({
-//             where: { id: existingPayment.id }, // No more error here!
-//             data: {
-//               status: PaymentStatus.SUCCESS,
-//               amount: invoice.amount_paid / 100,
-//               stripeCustomerId: stripeCustomerId,
-//               stripePaymentId: invoice.payment_intent as string,
-//             },
-//           });
-//         }
-//       } else {
-//         console.log(
-//           `No payment record found for Stripe Subscription ID ${stripeSubscriptionId}. This could be a renewal/recurring invoice.`,
-//         );
-//       }
-//       break;
-//     }
-//     case 'payment_intent.payment_failed': {
-//       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-//       const sessionId = paymentIntent.metadata?.paymentId;
+  // Update payment to success
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: PaymentStatus.SUCCESS,
+      amount: (session.amount_total || 0) / 100, // From session
+      stripePaymentId: session.payment_intent as string,
+      stripeCustomerId: session.customer as string,
+    },
+  });
 
-//       if (sessionId) {
-//         await prisma.payment.update({
-//           where: { id: sessionId },
-//           data: { status: PaymentStatus.FAILED },
-//         });
-//       } else {
-//         console.log('Payment failed but no session/paymentId found.');
-//       }
-//       break;
-//     }
+  // Unlock premium (one-time check)
+  const user = payment.user;
+  if (user && !user.hasPremiumAccess) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { hasPremiumAccess: true },
+    });
+    console.log(
+      `Premium access unlocked for user ${user.id} via session ${session.id}`,
+    );
+  }
 
-//     case 'checkout.session.completed': {
-//       const session = event.data.object as Stripe.Checkout.Session;
-//       await handleCheckoutSessionCompleted(session);
-//       break;
-//     }
+  return payment;
+};
 
-//     case 'checkout.session.expired': {
-//       const session = event.data.object as Stripe.Checkout.Session;
-//       await handleCheckoutSessionCanceled(session);
-//       break;
-//     }
+// handleCheckoutSessionCanceled remains the same (update to CANCELED)
+const handleCheckoutSessionCanceled = async (
+  session: Stripe.Checkout.Session,
+) => {
+  const paymentId = session.metadata?.paymentId; // If you save paymentId in metadata
+  if (!paymentId) return;
 
-//     default:
-//       console.log('Unhandled Stripe event type:', event.type);
-//       return { status: 'unhandled_event', type: event.type };
-//   }
-// };
+  await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      status: PaymentStatus.CANCELED,
+      stripeSessionId: session.id,
+    },
+  });
 
-// // Handle one-time checkout session completion
-
-// const handleCheckoutSessionCompleted = async (
-//   session: Stripe.Checkout.Session,
-// ) => {
-//   const paymentId = session.metadata?.paymentId;
-//   if (!paymentId) return;
-
-//   const stripeIdToLink =
-//     session.mode === 'subscription'
-//       ? (session.subscription as string | undefined)
-//       : (session.payment_intent as string | undefined);
-
-//   if (!stripeIdToLink) {
-//     console.log(
-//       `No primary Stripe ID (Subscription/PaymentIntent) on session ${session.id}, skipping immediate update.`,
-//     );
-//   }
-
-//   await prisma.payment.update({
-//     where: { id: paymentId },
-//     data: {
-//       // Save the session ID
-//       stripeSessionId: session.id,
-//       // Save the subscription ID if it's a subscription
-//       ...(session.mode === 'subscription' &&
-//         session.subscription && {
-//           stripeSubscriptionId: session.subscription as string,
-//         }),
-//       // Save the payment intent ID if it's a one-time payment
-//       ...(session.mode === 'payment' &&
-//         session.payment_intent && {
-//           stripePaymentId: session.payment_intent as string,
-//         }),
-
-//       status:
-//         session.mode === 'payment'
-//           ? PaymentStatus.SUCCESS
-//           : PaymentStatus.PENDING,
-//     },
-//   });
-
-//   return await prisma.payment.findUnique({ where: { id: paymentId } });
-// };
-
-// // Handle canceled checkout sessions
-// const handleCheckoutSessionCanceled = async (
-//   session: Stripe.Checkout.Session,
-// ) => {
-//   const paymentId = session.metadata?.paymentId;
-//   if (!paymentId) return;
-
-//   await prisma.payment.update({
-//     where: { id: paymentId },
-//     data: {
-//       status: PaymentStatus.CANCELED,
-//       stripeSessionId: session.id,
-//     },
-//   });
-
-//   return await prisma.payment.findUnique({ where: { id: paymentId } });
-// };
+  return await prisma.payment.findUnique({ where: { id: paymentId } });
+};

@@ -15,7 +15,6 @@ model Payment {
 
     stripeSessionId      String? @unique
     stripePaymentId      String? @unique
-   
     stripeCustomerId     String?
 
     user         User         @relation(fields: [userId], references: [id])

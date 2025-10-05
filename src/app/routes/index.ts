@@ -4,6 +4,10 @@ import { AuthRouters } from '../modules/Auth/Auth.routes';
 import { UserRouters } from '../modules/User/user.routes';
 import { PaymentRoutes } from '../modules/Payment/payment.route';
 import { MetaRoutes } from '../modules/meta/analytics.route';
+import { SubcategoryRoutes } from '../modules/subCategory/subCategory.routes';
+import { PlaceRoutes } from '../modules/place/place.routes';
+import { CategoryRoutes } from '../modules/category/category.routes';
+import { GuestRoutes } from '../modules/guest/guest.routes';
 
 
 const router = express.Router();
@@ -18,6 +22,10 @@ const moduleRoutes = [
     route: UserRouters,
   },
   {
+    path: '/guest',
+    route: GuestRoutes,
+  },
+  {
     path: '/payment',
     route: PaymentRoutes,
   },
@@ -26,7 +34,18 @@ const moduleRoutes = [
     path: '/meta',
     route: MetaRoutes,
   },
- 
+  {
+    path: '/categories',
+    route: CategoryRoutes,
+  },
+  {
+    path: '/sub-category',
+    route: SubcategoryRoutes,
+  },
+  {
+    path: '/places',
+    route: PlaceRoutes,
+  },
   {
     path: '/assets',
     route: AssetRouters,

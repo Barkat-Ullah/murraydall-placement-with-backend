@@ -3,6 +3,7 @@ import {
   PrismaClient,
   CategoryTypePlace,
   SubscriptionType,
+  PaymentStatus,
 } from '@prisma/client';
 import { Request } from 'express';
 import { uploadToDigitalOceanAWS } from '../../utils/uploadToDigitalOceanAWS';
@@ -138,13 +139,14 @@ const assignPaymentForPremiumPlace = async (userId: string, payload: any) => {
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
-  // Check required user fields for Stripe
+
   if (!user.email) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'User profile must be complete (email and name) before purchasing a subscription.',
     );
   }
+
   if (!methodId) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
@@ -155,26 +157,27 @@ const assignPaymentForPremiumPlace = async (userId: string, payload: any) => {
   const subscription = await prisma.subcategory.findUnique({
     where: { id: subcategoryId },
   });
+
   if (!subscription) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Subscription not found');
   }
-  if (!subscription.stripePriceId) {
+
+  if (!subscription.premiumPrice) {
     throw new AppError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      'Subscription plan is missing Stripe Price ID. Contact support.',
+      httpStatus.BAD_REQUEST,
+      'Premium price not found for this subcategory.',
     );
   }
 
   try {
-    // B. Get or Create Stripe Customer
+    // ✅ Step 1: Get or create Stripe customer
     let customerId = user.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
-        name: user.fullName,
+        name: user.fullName || 'Unknown User',
         metadata: { userId: user.id },
       });
-      console.log('Created Stripe customer:', customer.id);
       customerId = customer.id;
       await prisma.user.update({
         where: { id: userId },
@@ -182,54 +185,59 @@ const assignPaymentForPremiumPlace = async (userId: string, payload: any) => {
       });
     }
 
-    const retrievedMethod = await stripe.paymentMethods.retrieve(methodId);
-    console.log('Retrieved PaymentMethod:', retrievedMethod.id); // If this fails, error is here
-
-    // If using Stripe Connect, add stripeAccount header if needed: { stripeAccount: 'acct_xxx' }
+    // ✅ Step 2: Attach payment method to customer
     await stripe.paymentMethods.attach(methodId, { customer: customerId });
 
     await stripe.customers.update(customerId, {
       invoice_settings: { default_payment_method: methodId },
     });
 
-    // D. Create Stripe Subscription
-    const stripeSubscription = await stripe.subscriptions.create({
+    // ✅ Step 3: Create one-time PaymentIntent (not subscription)
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(subscription.premiumPrice * 100), // cents
+      currency: 'usd',
       customer: customerId,
-      items: [{ price: subscription.stripePriceId }],
-      expand: ['latest_invoice.payment_intent'],
+      payment_method: methodId,
+      confirm: true,
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never', // prevent redirect payment methods
+      },
+      description: `Payment for premium subcategory: ${subscription.name}`,
+      metadata: {
+        userId,
+        subcategoryId: subscription.id,
+      },
     });
 
-    // E. Extract PaymentIntent (uncomment clientSecret if needed for 3D Secure)
-    const latestInvoice = stripeSubscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = latestInvoice?.payment_intent as Stripe.PaymentIntent;
+    // ✅ Step 4: Save payment in DB as PENDING
+    await prisma.payment.create({
+      data: {
+        userId,
+        amount: subscription.premiumPrice,
+        currency: 'usd',
+        status: PaymentStatus.PENDING,
+        stripePaymentId: paymentIntent.id,
+        stripeCustomerId: customerId,
+      },
+    });
 
-    if (!paymentIntent) {
-      throw new AppError(
-        httpStatus.INTERNAL_SERVER_ERROR,
-        'Payment initiation failed. Could not retrieve payment intent.',
-      );
-    }
-
+    // ✅ Step 5: Return response
     return {
-      message: 'Payment initiation successful.',
+      success: true,
+      message: 'Payment initiated successfully.',
+      client_secret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
     };
   } catch (error: any) {
-    console.error('Stripe Subscription Creation Error:', error);
-    if (
-      error.type === 'StripeInvalidRequestError' &&
-      error.code === 'resource_missing'
-    ) {
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        `Invalid PaymentMethod ID: ${methodId}. Ensure it's created with the correct API keys and try again.`,
-      );
-    }
+    console.error('Stripe PaymentIntent Error:', error);
     throw new AppError(
       httpStatus.INTERNAL_SERVER_ERROR,
       `Failed to initiate payment with Stripe: ${error.message || 'Unknown error'}. Please try again.`,
     );
   }
 };
+
 
 const getAllPlace = async (query: Record<string, any>, userId?: string) => {
   const {

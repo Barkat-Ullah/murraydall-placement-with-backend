@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response } from 'express';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './app/routes';
 import auth from './app/middlewares/auth';
@@ -10,9 +10,7 @@ import {
   serverHealth,
   setupMiddlewares,
 } from './shared';
-import { rootHandler } from './shared/rootHandler';
 import { StripeWebHook } from './app/utils/StripeUtils';
-
 
 const app: Application = express();
 
@@ -27,8 +25,6 @@ setupMiddlewares(app);
 
 app.use('/api/v1', apiLimiter, router);
 
-
-
 // Upload route (after main routes, before error handler)
 app.post(
   '/api/v1/upload-image',
@@ -37,13 +33,13 @@ app.post(
   imageUpload,
 );
 
-// Root route 
-//* app.get('/', (req: Request, res: Response) => {
-//   res.send({
-//     Message: 'The server is running. . .',
-//   });
-// });
-app.get('/', rootHandler);
+// Root route
+app.get('/', (req: Request, res: Response) => {
+  res.send({
+    Message: 'The server is running. . .',
+  });
+});
+
 app.get('/health', serverHealth);
 
 // 404 handler (before global error)

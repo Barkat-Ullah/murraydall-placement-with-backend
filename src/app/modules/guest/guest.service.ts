@@ -1,9 +1,9 @@
 import { prisma } from '../../utils/prisma';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
 export const GuestServices = {
   async createOrGetGuest() {
-    const deviceId = uuidv4();
+    const deviceId = crypto.randomUUID();
     console.log(deviceId);
 
     let guest = await prisma.guest.findUnique({

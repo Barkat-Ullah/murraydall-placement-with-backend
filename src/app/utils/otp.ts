@@ -1,11 +1,11 @@
 export function generateOTP(): string {
-    const otp = Math.floor(Math.random() * 1000000);
-    return otp.toString().padStart(6, '0');
+  const otp: number = Math.floor(1000 + Math.random() * 9000);
+  return otp.toString().padStart(4, '0');
 }
 export function otpExpiryTime() {
-    const currentTime = Date.now();
-    const expiryTime = currentTime + 5 * 60 * 1000;
-    return new Date(expiryTime);
+  const currentTime = Date.now();
+  const expiryTime = currentTime + 5 * 60 * 1000;
+  return new Date(expiryTime);
 }
 
 export function getOtpStatusMessage(otpExpiryTime: Date): string {
@@ -25,5 +25,5 @@ export function getOtpStatusMessage(otpExpiryTime: Date): string {
     }
   }
 
-  return "No active OTP found. You can request a new one.";
+  return 'No active OTP found. You can request a new one.';
 }

@@ -57,7 +57,7 @@ const StripeHook = async (
           where: { id: existingPayment.id },
           data: {
             status: PaymentStatus.SUCCESS,
-            amount: paymentIntent.amount / 100, // Convert cents to dollars
+            amount: paymentIntent.amount / 100, 
             stripeCustomerId: paymentIntent.customer as string,
           },
         });
@@ -102,7 +102,7 @@ const StripeHook = async (
 const handleCheckoutSessionCompleted = async (
   session: Stripe.Checkout.Session,
 ) => {
-  const userId = session.metadata?.userId; // From metadata when creating session
+  const userId = session.metadata?.userId;
   if (!userId) {
     console.log('No userId in session metadata, skipping unlock');
     return;
@@ -124,7 +124,7 @@ const handleCheckoutSessionCompleted = async (
     where: { id: payment.id },
     data: {
       status: PaymentStatus.SUCCESS,
-      amount: (session.amount_total || 0) / 100, // From session
+      amount: (session.amount_total || 0) / 100, 
       stripePaymentId: session.payment_intent as string,
       stripeCustomerId: session.customer as string,
     },
@@ -149,7 +149,7 @@ const handleCheckoutSessionCompleted = async (
 const handleCheckoutSessionCanceled = async (
   session: Stripe.Checkout.Session,
 ) => {
-  const paymentId = session.metadata?.paymentId; // If you save paymentId in metadata
+  const paymentId = session.metadata?.paymentId;
   if (!paymentId) return;
 
   await prisma.payment.update({

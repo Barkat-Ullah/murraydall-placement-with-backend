@@ -16,7 +16,7 @@ const globalErrorHandler = (
 ) => {
   console.log(err);
   let statusCode = 500;
-  let message = 'Something went wrong!';
+  let message = err.message || 'Something went wrong!';
   let errorDetails: Record<string, any> = {};
 
   if (err instanceof ZodError) {

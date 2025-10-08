@@ -1,8 +1,9 @@
 import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
-import { UserServices } from './user.service';
+
 import { Request } from 'express';
+import { UserServices } from './user.service';
 
 const getAllUsers = catchAsync(async (req, res) => {
   const result = await UserServices.getAllUsersFromDB(req.query);
@@ -37,38 +38,31 @@ const getUserDetails = catchAsync(async (req, res) => {
 });
 
 // Update profile fields
-const updateMyProfile = catchAsync(async (req: Request, res) => {
-  const id = req.user.id;
-  const payload = req.body;
-
-  const result = await UserServices.updateMyProfileIntoDB(id, payload);
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    message: 'User profile updated successfully',
-    data: result,
-  });
-});
-
-// Update profile image
-const updateProfileImage = catchAsync(async (req: Request, res) => {
+const updateMyProfile = catchAsync(async (req, res) => {
   const id = req.user.id;
   const file = req.file;
-  const previousImg = req.user.profile || '';
-
-  const result = await UserServices.updateProfileImg(
-    id,
-    previousImg,
-    req,
-    file,
-  );
+  const payload = JSON.parse(req.body.data); 
+  const result = await UserServices.updateMyProfileIntoDB(id, file, payload);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
-    message: 'Profile image updated successfully',
+    success: true,
+    message: 'Profile updated successfully',
     data: result,
   });
 });
+
+const updateUser = catchAsync(async (req, res) => {
+  const id = req.params.id;
+  const result = await UserServices.updateUserIntoDb(req, id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'User updated successfully!',
+    data: result,
+  });
+});
+
 
 const updateUserRoleStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
@@ -131,7 +125,7 @@ export const UserControllers = {
   getMyProfile,
   getUserDetails,
   updateMyProfile,
-  updateProfileImage,
+  updateUser,
   updateUserRoleStatus,
   updateUserStatus,
   updateUserApproval,

@@ -31,15 +31,17 @@ router.delete(
 router.put(
   '/update-profile',
   auth('ANY'),
+  upload.single('file'),
   parseBody,
   UserControllers.updateMyProfile,
 );
 
 router.put(
-  '/update-profile-image',
-  auth('ANY'),
+  '/update-user/:id',
   upload.single('file'),
-  UserControllers.updateProfileImage,
+  auth(UserRoleEnum.ADMIN),
+  validateRequest.body(userValidation.updateUser),
+  UserControllers.updateUser,
 );
 
 router.put(

@@ -15,8 +15,8 @@ const createOrGetGuest = catchAsync(async (req: Request, res: Response) => {
 });
 
  const getMyGuest= catchAsync(async (req: Request, res: Response) => {
-    const { deviceId } = req.query; 
-    const guest = await GuestServices.getMyGuest(deviceId as string);
+    const { id } = req.query; 
+    const guest = await GuestServices.getMyGuest(id as string);
 
     sendResponse(res, {
       statusCode: httpStatus.OK,

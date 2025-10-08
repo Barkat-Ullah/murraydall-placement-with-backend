@@ -1,5 +1,7 @@
 import express from 'express';
 import { CategoryController } from './category.controller';
+import auth from '../../middlewares/auth';
+import { UserRoleEnum } from '@prisma/client';
 
 const router = express.Router();
 
@@ -10,6 +12,11 @@ router.get('/', CategoryController.getAllCategories);
 router.get(
   '/:categoryType/subcategories',
   CategoryController.getSubcategoriesByCategory,
+);
+router.delete(
+  '/subcategories/:subcategoryId',
+  auth(UserRoleEnum.ADMIN),
+  CategoryController.deleteSubcategoryHard,
 );
 
 export const CategoryRoutes = router;

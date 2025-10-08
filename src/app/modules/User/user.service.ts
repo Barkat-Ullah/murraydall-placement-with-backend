@@ -10,8 +10,11 @@ import { uploadToDigitalOceanAWS } from '../../utils/uploadToDigitalOceanAWS';
 interface UserWithOptionalPassword extends Omit<User, 'password'> {
   password?: string;
 }
-const getAllUsersFromDB = async (query: any) => {
+const getAllUsersFromDB = async (query?: any) => {
   const usersQuery = new QueryBuilder<typeof prisma.user>(prisma.user, query);
+
+  // Exclude admin users
+  usersQuery.where({ role: 'USER' });
 
   const result = await usersQuery
     .search(['fullName', 'email', 'address', 'city'])
@@ -21,8 +24,10 @@ const getAllUsersFromDB = async (query: any) => {
     .exclude()
     .paginate()
     .execute();
+
   return result;
 };
+
 
 const getMyProfileFromDB = async (id: string) => {
   const Profile = await prisma.user.findUniqueOrThrow({
@@ -53,64 +58,71 @@ const getUserDetailsFromDB = async (id: string) => {
   return user;
 };
 
-const updateProfileImg = async (
-  id: string,
-  previousImg: string,
-  req: Request,
-  file: Express.Multer.File | undefined,
-) => {
-  if (file) {
-    const location = uploadToDigitalOceanAWS(file);
+// const updateProfileImg = async (
+//   id: string,
+//   previousImg: string,
+//   req: Request,
+//   file: Express.Multer.File | undefined,
+// ) => {
+//   if (file) {
+//     const location = uploadToDigitalOceanAWS(file);
 
-    const result = await prisma.user.update({
-      where: {
-        id,
-      },
-      data: {
-        profile: (await location).Location,
-      },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        profile: true,
-      },
-    });
-    if (previousImg) {
-      deleteFile(previousImg);
-    }
-    req.user.profile = location;
-    return result;
-  }
-  throw new AppError(httpStatus.NOT_FOUND, 'Please provide image');
-};
+//     const result = await prisma.user.update({
+//       where: {
+//         id,
+//       },
+//       data: {
+//         profile: (await location).Location,
+//       },
+//       select: {
+//         id: true,
+//         fullName: true,
+//         email: true,
+//         profile: true,
+//       },
+//     });
+//     if (previousImg) {
+//       deleteFile(previousImg);
+//     }
+//     req.user.profile = location;
+//     return result;
+//   }
+//   throw new AppError(httpStatus.NOT_FOUND, 'Please provide image');
+// };
 
 const updateMyProfileIntoDB = async (
   id: string,
-
+  file: Express.Multer.File | undefined,
   payload: Partial<User>,
 ) => {
-  delete payload.email;
-  delete payload.role;
+  // Prevent updating sensitive fields
+  const { email, role, ...updateData } = payload;
 
+  let profileUrl: string | null = null;
+  if (file) {
+    const location = await uploadToDigitalOceanAWS(file);
+    profileUrl = location.Location;
+    updateData.profile = profileUrl;
+  }
+
+  // Always update (with or without file)
   const result = await prisma.user.update({
-    where: {
-      id,
-    },
-    data: payload,
+    where: { id },
+    data: updateData,
     select: {
       id: true,
       fullName: true,
       email: true,
       phoneNumber: true,
+      profile: true,
       role: true,
       status: true,
       describe: true,
       city: true,
       address: true,
-      profile: true,
     },
   });
+
   return result;
 };
 
@@ -205,6 +217,64 @@ const hardDeleteUserIntoDB = async (id: string, adminId: string) => {
   );
 };
 
+const updateUserIntoDb = async (req: Request, id: string) => {
+  // Step 1️⃣: Check if user exists
+  const userInfo = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!userInfo) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found with id: ' + id);
+  }
+
+  // Step 2️⃣: Parse incoming data
+  const { fullName, describe, city, address, phoneNumber } = JSON.parse(
+    req.body.data,
+  );
+
+  // Step 3️⃣: Handle file upload (optional)
+  const file = req.file as Express.Multer.File | undefined;
+  let profileUrl: string | null = userInfo.profile;
+
+  if (file) {
+    const location = await uploadToDigitalOceanAWS(file);
+    profileUrl = location.Location;
+  }
+
+  // Step 4️⃣: Update user in DB
+  const result = await prisma.user.update({
+    where: { id },
+    data: {
+      fullName,
+      describe,
+      city,
+      address,
+      phoneNumber,
+      profile: profileUrl,
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      profile: true,
+      role: true,
+      describe: true,
+      city: true,
+      address: true,
+      status: true,
+    },
+  });
+
+  if (!result) {
+    throw new AppError(
+      httpStatus.INTERNAL_SERVER_ERROR,
+      'Failed to update user profile',
+    );
+  }
+
+  return result;
+};
+
 export const UserServices = {
   getAllUsersFromDB,
   getMyProfileFromDB,
@@ -212,8 +282,8 @@ export const UserServices = {
   updateMyProfileIntoDB,
   updateUserRoleStatusIntoDB,
   updateUserStatus,
-  updateProfileImg,
   updateUserApproval,
   softDeleteUserIntoDB,
   hardDeleteUserIntoDB,
+  updateUserIntoDb,
 };

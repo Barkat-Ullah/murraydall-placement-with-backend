@@ -38,7 +38,7 @@ export const GuestServices = {
 
   async getMyGuest(deviceId: string) {
     const result = await prisma.guest.findUnique({
-      where: { deviceId },
+      where: { id: deviceId },
       select: {
         id: true,
         deviceId: true,

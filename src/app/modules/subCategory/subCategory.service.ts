@@ -55,7 +55,7 @@ const createSubcategory = async (req: Request) => {
     // Create price
     const price = await stripe.prices.create({
       product: product.id,
-      unit_amount: Math.round(amount * 100), 
+      unit_amount: Math.round(amount * 100),
       currency: 'usd',
     });
 
@@ -119,7 +119,10 @@ const getAllSubcategories = async (query: Record<string, any>) => {
 const getPlacesBySubcategory = async (subcategoryId: string) => {
   const subcategory = await prisma.subcategory.findUnique({
     where: { id: subcategoryId },
-    include: {
+    select: {
+      name: true,
+      image: true,
+      isPremium: true,
       places: {
         select: {
           id: true,
@@ -137,7 +140,7 @@ const getPlacesBySubcategory = async (subcategoryId: string) => {
     throw new Error('Subcategory not found');
   }
 
-  return subcategory.places;
+  return subcategory;
 };
 
 export const SubcategoryServices = {

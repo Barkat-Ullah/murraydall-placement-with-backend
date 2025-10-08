@@ -27,8 +27,21 @@ const getSubcategoriesByCategory = catchAsync(
     });
   },
 );
+const deleteSubcategoryHard = catchAsync(
+  async (req: Request, res: Response) => {
+    const { subcategoryId } = req.params;
+    const result = await CategoryServices.deleteSubcategoryHard(subcategoryId);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: `Subcategories for ${subcategoryId} retrieved successfully`,
+      data: result,
+    });
+  },
+);
 
 export const CategoryController = {
   getAllCategories,
   getSubcategoriesByCategory,
+  deleteSubcategoryHard,
 };

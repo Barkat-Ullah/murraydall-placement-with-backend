@@ -66,7 +66,9 @@ const getPlaceById = catchAsync(async (req: Request, res: Response) => {
 
 const updateIntoDb = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await PlaceServices.updateIntoDb(id, req.body);
+  const file = req.file
+  const data = JSON.parse(req.body.data)
+  const result = await PlaceServices.updateIntoDb(id, data,file);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -77,7 +79,8 @@ const updateIntoDb = catchAsync(async (req: Request, res: Response) => {
 
 const deleteIntoDb = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const result = await PlaceServices.deleteIntoDb(id);
+  const userId = req.user.id
+  const result = await PlaceServices.deleteIntoDb(id,userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

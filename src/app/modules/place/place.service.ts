@@ -4,15 +4,19 @@ import {
   CategoryTypePlace,
   SubscriptionType,
   PaymentStatus,
+  Place,
 } from '@prisma/client';
 import { Request } from 'express';
 import { uploadToDigitalOceanAWS } from '../../utils/uploadToDigitalOceanAWS';
 import AppError from '../../errors/AppError';
 import httpStatus from 'http-status';
 import { stripe } from '../../utils/stripe';
-import Stripe from 'stripe';
 
 const prisma = new PrismaClient();
+export const removeUndefined = (obj: Record<string, any>) =>
+  Object.fromEntries(
+    Object.entries(obj).filter(([_, v]) => v !== undefined && v !== null),
+  );
 
 const createIntoDb = async (req: Request) => {
   const userId = req.user.id;
@@ -29,6 +33,8 @@ const createIntoDb = async (req: Request) => {
     stripePriceId,
     stripeProductId,
     subscriptionType,
+    longitude,
+    latitude,
   } = JSON.parse(req.body.data);
 
   const file = req.file as Express.Multer.File | undefined;
@@ -92,6 +98,8 @@ const createIntoDb = async (req: Request) => {
       stripeProductId: finalStripeProductId,
       subscriptionType: finalSubscriptionType,
       userId,
+      latitude,
+      longitude,
     },
     select: {
       id: true,
@@ -108,6 +116,8 @@ const createIntoDb = async (req: Request) => {
       stripePriceId: true,
       stripeProductId: true,
       subscriptionType: true,
+      longitude: true,
+      latitude: true,
       subcategory: {
         select: {
           id: true,
@@ -194,14 +204,14 @@ const assignPaymentForPremiumPlace = async (userId: string, payload: any) => {
 
     // ✅ Step 3: Create one-time PaymentIntent (not subscription)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(subscription.premiumPrice * 100), // cents
+      amount: Math.round(subscription.premiumPrice * 100),
       currency: 'usd',
       customer: customerId,
       payment_method: methodId,
       confirm: true,
       automatic_payment_methods: {
         enabled: true,
-        allow_redirects: 'never', // prevent redirect payment methods
+        allow_redirects: 'never',
       },
       description: `Payment for premium subcategory: ${subscription.name}`,
       metadata: {
@@ -238,7 +248,6 @@ const assignPaymentForPremiumPlace = async (userId: string, payload: any) => {
   }
 };
 
-
 const getAllPlace = async (query: Record<string, any>, userId?: string) => {
   const {
     categoryType,
@@ -246,7 +255,9 @@ const getAllPlace = async (query: Record<string, any>, userId?: string) => {
     limit = 10,
     page = 1,
     premiumOnly = false,
+    search,
   } = query;
+
   const skip = (Number(page) - 1) * Number(limit);
 
   let where: any = {};
@@ -261,6 +272,22 @@ const getAllPlace = async (query: Record<string, any>, userId?: string) => {
 
   if (premiumOnly === 'true') {
     where.subscriptionType = SubscriptionType.PREMIUM;
+  }
+
+  // Search functionality
+  if (search && search.trim() !== '') {
+    console.log('Search is being applied!');
+    where.OR = [
+      { placeTitle: { contains: search.trim(), mode: 'insensitive' } },
+      { placeDescription: { contains: search.trim(), mode: 'insensitive' } },
+      { placeLocation: { contains: search.trim(), mode: 'insensitive' } },
+      { aboutPlace: { contains: search.trim(), mode: 'insensitive' } },
+      {
+        subcategory: {
+          name: { contains: search.trim(), mode: 'insensitive' },
+        },
+      },
+    ];
   }
 
   const [result, total] = await Promise.all([
@@ -281,6 +308,8 @@ const getAllPlace = async (query: Record<string, any>, userId?: string) => {
         stripePriceId: true,
         stripeProductId: true,
         subscriptionType: true,
+        longitude: true,
+        latitude: true,
         subcategory: {
           select: {
             id: true,
@@ -361,6 +390,8 @@ const getPlaceByIdFromDB = async (id: string) => {
       stripePriceId: true,
       stripeProductId: true,
       subscriptionType: true,
+      longitude: true,
+      latitude: true,
       subcategory: {
         select: {
           id: true,
@@ -395,34 +426,49 @@ const getPlaceByIdFromDB = async (id: string) => {
   return result;
 };
 
-const updateIntoDb = async (id: string, data: Partial<any>) => {
-  console.dir({ id, data });
-
-  // Fetch existing to check subcategory changes
+const updateIntoDb = async (
+  id: string,
+  data: Partial<Place>,
+  file?: Express.Multer.File,
+) => {
+  // Step 1️⃣: Find existing record
   const existing = await prisma.place.findUnique({ where: { id } });
-  if (!existing) {
-    throw new Error('Place not found');
+  if (!existing) throw new AppError(httpStatus.NOT_FOUND, 'Place not found');
+
+  // Step 2️⃣: Optional image upload
+  let fileUrl: string | null = existing.imageUrl || null;
+  if (file) {
+    const uploaded = await uploadToDigitalOceanAWS(file);
+    fileUrl = uploaded.Location;
   }
 
-  let updateData: any = { ...data };
+  // Step 3️⃣: Prepare dynamic update data
+  let updateData: any = removeUndefined({
+    ...data,
+    imageUrl: fileUrl,
+  });
 
-  // Handle subcategory change
-  if (data.subcategoryId && data.subcategoryId !== existing.subcategoryId) {
-    const subcategory = await prisma.subcategory.findUnique({
-      where: { id: data.subcategoryId },
-    });
-    if (subcategory) {
-      updateData.price = subcategory.isPremium
-        ? subcategory.premiumPrice || 10.0
-        : 0;
-      updateData.subscriptionType = subcategory.isPremium
-        ? SubscriptionType.PREMIUM
-        : SubscriptionType.FREE;
-      updateData.stripePriceId = subcategory.stripePriceId || null;
-      updateData.stripeProductId = subcategory.stripeProductId || null;
-    }
-  }
+  // Step 4️⃣: Handle subcategory change (if provided)
+  // if (data.subcategoryId && data.subcategoryId !== existing.subcategoryId) {
+  //   const subcategory = await prisma.subcategory.findUnique({
+  //     where: { id: data.subcategoryId },
+  //   });
 
+  //   if (subcategory) {
+  //     updateData = {
+  //       ...updateData,
+  //       price: subcategory.isPremium ? subcategory.premiumPrice || 10.0 : 0,
+  //       subscriptionType: subcategory.isPremium
+  //         ? SubscriptionType.PREMIUM
+  //         : SubscriptionType.FREE,
+  //       stripePriceId: subcategory.stripePriceId || null,
+  //       stripeProductId: subcategory.stripeProductId || null,
+  //     };
+  //   }
+  // }
+
+  // Step 5️⃣: Update in DB
+  
   const result = await prisma.place.update({
     where: { id },
     data: updateData,
@@ -441,8 +487,14 @@ const updateIntoDb = async (id: string, data: Partial<any>) => {
   return result;
 };
 
-const deleteIntoDb = async (id: string) => {
+const deleteIntoDb = async (id: string, userId: string) => {
   console.log('Deleting place:', id);
+
+   await prisma.user.findUniqueOrThrow({
+    where: {
+      id: userId,
+    },
+  });
 
   const result = await prisma.place.delete({
     where: { id },

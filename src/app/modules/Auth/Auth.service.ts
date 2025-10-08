@@ -92,7 +92,7 @@ const registerWithOtpIntoDB = async (payload: User) => {
   }
 
   // OTP generate (number)
-  const otp: number = Math.floor(100000 + Math.random() * 900000);
+  const otp: number = Math.floor(1000 + Math.random() * 9000);
   const userData: User = {
     ...payload,
     password: hashedPassword,
@@ -252,7 +252,7 @@ const forgetPassword = async (email: string) => {
     const message = getOtpStatusMessage(userData.otpExpiry);
     throw new AppError(httpStatus.CONFLICT, message);
   }
-  const otp: number = Math.floor(100000 + Math.random() * 900000);
+    const otp: number = Math.floor(1000 + Math.random() * 9000);
   const expireTime = otpExpiryTime();
   try {
     await prisma.$transaction(async tx => {

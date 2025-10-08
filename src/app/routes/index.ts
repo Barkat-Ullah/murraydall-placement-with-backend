@@ -8,6 +8,7 @@ import { SubcategoryRoutes } from '../modules/subCategory/subCategory.routes';
 import { PlaceRoutes } from '../modules/place/place.routes';
 import { CategoryRoutes } from '../modules/category/category.routes';
 import { GuestRoutes } from '../modules/guest/guest.routes';
+import { FavoriteRoutes } from '../modules/favorites/favorites.routes';
 
 
 const router = express.Router();
@@ -29,7 +30,6 @@ const moduleRoutes = [
     path: '/payment',
     route: PaymentRoutes,
   },
- 
   {
     path: '/meta',
     route: MetaRoutes,
@@ -45,6 +45,10 @@ const moduleRoutes = [
   {
     path: '/places',
     route: PlaceRoutes,
+  },
+  {
+    path: '/my-favorite',
+    route: FavoriteRoutes,
   },
   {
     path: '/assets',

@@ -23,7 +23,12 @@ router.post(
   PlaceController.assignPaymentForPremiumPlace,
 );
 
-router.patch('/:id', auth(UserRoleEnum.ADMIN), PlaceController.updateIntoDb);
+router.patch(
+  '/:id',
+  upload.single('file'),
+  auth(UserRoleEnum.ADMIN),
+  PlaceController.updateIntoDb,
+);
 
 router.delete('/:id', auth(UserRoleEnum.ADMIN), PlaceController.deleteIntoDb);
 

@@ -25,12 +25,14 @@ model Place {
     aboutPlace           String       
     how_to_go_there      String         
     suggested_Visit_Time String         
+    latitude             Float?
+    longitude            Float?
     // Additions for UI:
     imageUrl             String?       
 
     categoryType         CategoryTypePlace  
     subcategoryId        String?            @db.ObjectId  
-    subcategory          Subcategory?       @relation(fields: [subcategoryId], references: [id])
+    subcategory          Subcategory?       @relation(fields: [subcategoryId], references: [id],onDelete: Cascade)
 
     price                Float            
     stripePriceId        String?
@@ -38,7 +40,7 @@ model Place {
     subscriptionType     SubscriptionType  
 
     userId               String            @db.ObjectId
-    user                 User              @relation(fields: [userId], references: [id])
+    user                 User              @relation(fields: [userId], references: [id],onDelete: Cascade)
 
     favorite             Favorite[]
     createdAt            DateTime          @default(now())

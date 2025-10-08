@@ -1,6 +1,6 @@
 // ... existing imports + PrismaClient
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -50,8 +50,23 @@ const getFavorites = async (ownerId: string, ownerType: 'USER' | 'GUEST') => {
     where,
     include: {
       place: {
-        include: {
-          subcategory: true,
+        select: {
+          id: true,
+          placeTitle: true,
+          placeDescription: true,
+          placeLocation: true,
+          imageUrl:true,
+          aboutPlace: true,
+          how_to_go_there: true,
+          suggested_Visit_Time: true,
+          categoryType: true,
+          subcategory: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
         },
       },
     },

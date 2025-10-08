@@ -4,6 +4,7 @@ model User {
   email       String       @unique
   phoneNumber String?      @unique
   password    String
+  
   role        UserRoleEnum @default(USER)
 
   status     UserStatus @default(ACTIVE)

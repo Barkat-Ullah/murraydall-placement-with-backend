@@ -32,7 +32,27 @@ const getSubcategoriesByCategory = async (categoryType: string) => {
   return subcategories;
 };
 
+const deleteSubcategoryHard = async (subcategoryId: string) => {
+  const subcategory = await prisma.subcategory.findUnique({
+    where: { id: subcategoryId },
+  });
+
+  if (!subcategory) {
+    throw new Error('Subcategory not found');
+  }
+
+  // Just delete subcategory, Prisma will automatically cascade delete
+  await prisma.subcategory.delete({
+    where: { id: subcategoryId },
+  });
+
+  return {
+    message: 'Subcategory and all related data deleted successfully',
+  };
+};
+
 export const CategoryServices = {
   getAllCategories,
   getSubcategoriesByCategory,
+  deleteSubcategoryHard,
 };

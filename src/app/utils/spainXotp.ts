@@ -31,35 +31,61 @@ export const generateOtpEmail = (otp: number) => {
       </div>`;
 };
 
+// const emailSender = async (to: string, html: string, subject: string) => {
+//   try {
+//     const transporter = nodemailer.createTransport({
+//       host: 'smtp.gmail.com',
+//       port: 587,
+//       secure: false,
+//       auth: {
+//         user: config.mail,
+//         pass: config.mail_password,
+//       },
+//       tls: {
+//         rejectUnauthorized: false,
+//       },
+//     });
+
+//     const mailOptions = {
+//       from: '"Murrydull" <barkatullah585464@gmail.com>',
+//       to, 
+//       subject,
+//       html,
+//     };
+
+//     const info = await transporter.sendMail(mailOptions);
+    
+//     return info.messageId;
+//   } catch (error) {
+//     console.error('Email sending failed:', error); 
+//     throw new Error('Failed to send email. Please try again later.');
+//   }
+// };
+
+
 const emailSender = async (to: string, html: string, subject: string) => {
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
+      host: 'smtp-relay.brevo.com',
+      port: 2525,
       secure: false,
       auth: {
-        user: config.mail,
-        pass: config.mail_password,
-      },
-      tls: {
-        rejectUnauthorized: false,
+        user: '88803c001@smtp-brevo.com',
+        pass: 'OzqM8PBhVxbNYEUt',
       },
     });
-
     const mailOptions = {
-      from: '"Murrydull" <barkatullah585464@gmail.com>',
-      to, 
+      from: '<akonhasan680@gmail.com>',
+      to,
       subject,
+      text: html.replace(/<[^>]+>/g, ''),
       html,
     };
-
+    // Send the email
     const info = await transporter.sendMail(mailOptions);
-    
     return info.messageId;
   } catch (error) {
-    console.error('Email sending failed:', error); 
     throw new Error('Failed to send email. Please try again later.');
   }
 };
-
 export default emailSender;

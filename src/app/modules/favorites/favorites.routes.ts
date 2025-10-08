@@ -1,13 +1,12 @@
 import express from 'express';
 import { FavoriteController } from './favorites.controller';
-
+import auth from '../../middlewares/auth'; 
 
 const router = express.Router();
 
-// Toggle favorite (POST - for simplicity; can be PUT if preferred)
-router.post('/', FavoriteController.toggleFavorite);
-
-// Optional: Get user's/guest's favorites (for UI load)
-router.get('/', FavoriteController.getFavorites);
+router.get('/guest', FavoriteController.getGuestFavorites);
+router.get('/user', auth('USER'), FavoriteController.getUserFavorites);
+router.post('/user', auth('USER'), FavoriteController.toggleUserFavorite);
+router.post('/guest', FavoriteController.toggleGuestFavorite);
 
 export const FavoriteRoutes = router;

@@ -2,7 +2,6 @@ import httpStatus from 'http-status';
 import { User, UserRoleEnum, UserStatus } from '@prisma/client';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { prisma } from '../../utils/prisma';
-import { deleteFile, uploadSingleFile } from '../../utils/uploadFiles';
 import { Request } from 'express';
 import AppError from '../../errors/AppError';
 import { uploadToDigitalOceanAWS } from '../../utils/uploadToDigitalOceanAWS';

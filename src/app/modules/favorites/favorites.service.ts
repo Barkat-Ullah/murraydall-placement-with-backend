@@ -1,82 +1,57 @@
-// ... existing imports + PrismaClient
-
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../utils/prisma';
 
 const toggleFavorite = async (
   ownerId: string,
   ownerType: 'USER' | 'GUEST',
   placeId: string,
 ) => {
-  let existing;
-  if (ownerType === 'USER') {
-    existing = await prisma.favorite.findUnique({
-      where: { userId_placeId: { userId: ownerId, placeId } },
-    });
-  } else {
-    existing = await prisma.favorite.findUnique({
-      where: { guestId_placeId: { guestId: ownerId, placeId } },
-    });
-  }
+  const where =
+    ownerType === 'USER'
+      ? { userId: ownerId, placeId }
+      : { guestId: ownerId, placeId };
 
-  let isFavorite: boolean;
+  const existing = await prisma.favorite.findFirst({ where });
+
   if (existing) {
     await prisma.favorite.delete({ where: { id: existing.id } });
-    isFavorite = false;
-  } else {
-    const data =
+    return { isFavorite: false };
+  }
+
+  await prisma.favorite.create({
+    data:
       ownerType === 'USER'
         ? { userId: ownerId, placeId }
-        : { guestId: ownerId, placeId };
+        : { guestId: ownerId, placeId },
+  });
 
-    await prisma.favorite.create({ data });
-    isFavorite = true;
-  }
-
-  return { isFavorite };
+  return { isFavorite: true };
 };
 
-// New: Get favorites (with Place details)
 const getFavorites = async (ownerId: string, ownerType: 'USER' | 'GUEST') => {
-  let where;
-  if (ownerType === 'USER') {
-    where = { userId: ownerId };
-  } else {
-    where = { guestId: ownerId };
-  }
+  const where =
+    ownerType === 'USER' ? { userId: ownerId } : { guestId: ownerId };
 
   const favorites = await prisma.favorite.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      userId: true,
+      guestId: true,
       place: {
         select: {
           id: true,
           placeTitle: true,
-          placeDescription: true,
-          placeLocation: true,
-          imageUrl:true,
-          aboutPlace: true,
-          how_to_go_there: true,
-          suggested_Visit_Time: true,
-          categoryType: true,
-          subcategory: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-            },
-          },
+          price: true,
+          imageUrl: true,
         },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: {
+      createdAt: 'desc',
+    },
   });
 
-  return favorites.map(fav => ({
-    ...fav.place, // Place details
-    isFavorite: true, // Always true for this list
-  }));
+  return favorites;
 };
 
 export const FavoriteServices = {

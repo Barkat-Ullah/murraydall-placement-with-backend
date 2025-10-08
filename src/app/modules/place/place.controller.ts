@@ -29,7 +29,7 @@ const assignPaymentForPremiumPlace = catchAsync(
       data: result,
     });
   },
-);;
+);
 
 
 const getAllPlace = catchAsync(async (req: Request, res: Response) => {

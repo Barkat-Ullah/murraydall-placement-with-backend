@@ -52,6 +52,15 @@ const getMyPlace = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+const getPremiumPlace = catchAsync(async (req: Request, res: Response) => {
+  const result = await PlaceServices.getOnlyPremiumPlace();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Successfully retrieved al premium place',
+    data: result,
+  });
+});
 
 const getPlaceById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -97,4 +106,5 @@ export const PlaceController = {
   updateIntoDb,
   deleteIntoDb,
   assignPaymentForPremiumPlace,
+  getPremiumPlace,
 };

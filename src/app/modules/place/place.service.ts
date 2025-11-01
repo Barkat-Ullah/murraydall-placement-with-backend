@@ -348,6 +348,17 @@ const getAllPlace = async (query: Record<string, any>, userId?: string) => {
   };
 };
 
+const getOnlyPremiumPlace = async () => {
+  const result = await prisma.place.findMany({
+    where: {
+      subcategory: {
+        isPremium: true,
+      },
+    },
+  });
+  return result;
+};
+
 const getMyPlace = async (userId: string) => {
   console.log('Fetching my place for user:', userId);
 
@@ -468,7 +479,7 @@ const updateIntoDb = async (
   // }
 
   // Step 5️⃣: Update in DB
-  
+
   const result = await prisma.place.update({
     where: { id },
     data: updateData,
@@ -490,7 +501,7 @@ const updateIntoDb = async (
 const deleteIntoDb = async (id: string, userId: string) => {
   console.log('Deleting place:', id);
 
-   await prisma.user.findUniqueOrThrow({
+  await prisma.user.findUniqueOrThrow({
     where: {
       id: userId,
     },
@@ -516,4 +527,5 @@ export const PlaceServices = {
   deleteIntoDb,
   softDeleteIntoDb,
   assignPaymentForPremiumPlace,
+  getOnlyPremiumPlace,
 };

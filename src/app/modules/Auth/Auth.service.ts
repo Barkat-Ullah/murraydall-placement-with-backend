@@ -39,7 +39,9 @@ const loginWithOtpFromDB = async (
   if (!isCorrectPassword) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password incorrect');
   }
-
+ if (userData.isDeleted) {
+   throw new AppError(httpStatus.UNAUTHORIZED, 'You are deleted !');
+ }
   if (userData.role !== UserRoleEnum.ADMIN && !userData.isEmailVerified) {
     const otp = generateOTP();
 

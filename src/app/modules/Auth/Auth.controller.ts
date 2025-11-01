@@ -2,9 +2,19 @@ import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { AuthServices } from './Auth.service';
+import { FavoriteServices } from '../favorites/favorites.service';
 
 const loginWithOtp = catchAsync(async (req, res) => {
+  const guestId = req.body?.guestId;
   const result = await AuthServices.loginWithOtpFromDB(res, req.body);
+
+  if (guestId) {
+    await FavoriteServices.migrateGuestFavoritesToUser(
+      guestId,
+      result?.id as string,
+    );
+  }
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     message: 'User logged in successfully',

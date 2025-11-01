@@ -5,7 +5,6 @@ import sendResponse from '../../utils/sendResponse';
 import { Request, Response } from 'express';
 import { SubcategoryServices } from './subCategory.service';
 
-
 const createSubcategory = catchAsync(async (req: Request, res: Response) => {
   const result = await SubcategoryServices.createSubcategory(req);
   sendResponse(res, {
@@ -40,8 +39,47 @@ const getPlacesBySubcategory = catchAsync(
   },
 );
 
+const deleteSubCategory = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const result = await SubcategoryServices.deleteIntoDb(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Successfully deleted Sub category',
+    data: result,
+  });
+});
+
+const softDeleteSubCategory = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await SubcategoryServices.softDeleteIntoDb(id);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Successfully soft deleted Sub category',
+      data: result,
+    });
+  },
+);
+const updateSubCategory = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const data = req.body.data ? JSON.parse(req.body.data) : {};
+  const file = req.file;
+  const result = await SubcategoryServices.updateSubCategory(id, data, file);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Successfully updated Sub category',
+    data: result,
+  });
+});
+
 export const SubcategoryController = {
   createSubcategory,
   getAllSubcategories,
   getPlacesBySubcategory,
+  deleteSubCategory,
+  softDeleteSubCategory,
+  updateSubCategory,
 };

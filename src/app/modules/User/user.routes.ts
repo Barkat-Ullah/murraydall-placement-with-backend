@@ -32,7 +32,6 @@ router.put(
   '/update-profile',
   auth('ANY'),
   upload.single('file'),
-  parseBody,
   UserControllers.updateMyProfile,
 );
 

@@ -9,6 +9,7 @@ const router = express.Router();
 router.get('/', PlaceController.getAllPlace);
 
 router.get('/my', PlaceController.getMyPlace);
+router.get('/premium-place', PlaceController.getPremiumPlace);
 router.get('/:id', PlaceController.getPlaceById);
 
 router.post(

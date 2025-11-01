@@ -1,53 +1,53 @@
 model Subcategory {
-    id                  String         @id @default(auto()) @map("_id") @db.ObjectId
-    name                String        
-    description         String?       
-    image               String?
-    categoryType        CategoryTypePlace  
-    isPremium           Boolean        @default(false)  
-    premiumPrice        Float?         
-    stripePriceId       String?       
-    stripeProductId     String?
+    id              String            @id @default(auto()) @map("_id") @db.ObjectId
+    name            String
+    description     String?
+    image           String?
+    categoryType    CategoryTypePlace
+    isPremium       Boolean           @default(false)
+    isDeleted       Boolean           @default(false)
+    premiumPrice    Float?
+    stripePriceId   String?
+    stripeProductId String?
     // Relations
-    places              Place[]        
-    createdAt           DateTime       @default(now())
-    updatedAt           DateTime       @updatedAt
+    places          Place[]
+    createdAt       DateTime          @default(now())
+    updatedAt       DateTime          @updatedAt
 
-    @@unique([name, categoryType])  
+    @@unique([name, categoryType])
     @@map("subcategory")
 }
 
 model Place {
-    id                   String         @id @default(auto()) @map("_id") @db.ObjectId
-    placeTitle           String        
-    placeDescription     String        
-    placeLocation        String        
-    aboutPlace           String       
-    how_to_go_there      String         
-    suggested_Visit_Time String         
+    id                   String  @id @default(auto()) @map("_id") @db.ObjectId
+    placeTitle           String
+    placeDescription     String
+    placeLocation        String
+    aboutPlace           String
+    how_to_go_there      String
+    suggested_Visit_Time String
     latitude             Float?
     longitude            Float?
     // Additions for UI:
-    imageUrl             String?       
+    imageUrl             String?
 
-    categoryType         CategoryTypePlace  
-    subcategoryId        String?            @db.ObjectId  
-    subcategory          Subcategory?       @relation(fields: [subcategoryId], references: [id],onDelete: Cascade)
+    categoryType  CategoryTypePlace
+    subcategoryId String?           @db.ObjectId
+    subcategory   Subcategory?      @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
 
-    price                Float            
-    stripePriceId        String?
-    stripeProductId      String?
-    subscriptionType     SubscriptionType  
+    price            Float
+    stripePriceId    String?
+    stripeProductId  String?
+    subscriptionType SubscriptionType
 
-    userId               String            @db.ObjectId
-    user                 User              @relation(fields: [userId], references: [id],onDelete: Cascade)
+    userId String @db.ObjectId
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    favorite             Favorite[]
-    createdAt            DateTime          @default(now())
-    updatedAt            DateTime          @updatedAt
+    favorite  Favorite[]
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
 
     @@map("place")
-   
 }
 
 enum CategoryTypePlace {

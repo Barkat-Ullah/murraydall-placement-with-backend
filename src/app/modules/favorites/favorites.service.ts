@@ -54,7 +54,46 @@ const getFavorites = async (ownerId: string, ownerType: 'USER' | 'GUEST') => {
   return favorites;
 };
 
+const migrateGuestFavoritesToUser = async (guestId: string, userId: string) => {
+  // Step 1: Find all guest favorites
+  const guestFavorites = await prisma.favorite.findMany({
+    where: { guestId },
+  });
+
+  if (!guestFavorites.length) return { migrated: 0 };
+
+  // Step 2: Insert into user favorites (skip duplicates)
+  let migratedCount = 0;
+
+  for (const fav of guestFavorites) {
+    const existing = await prisma.favorite.findFirst({
+      where: {
+        userId,
+        placeId: fav.placeId,
+      },
+    });
+
+    if (!existing) {
+      await prisma.favorite.create({
+        data: {
+          userId,
+          placeId: fav.placeId,
+        },
+      });
+      migratedCount++;
+    }
+  }
+
+  // Step 3: Delete guest favorites (optional)
+  await prisma.favorite.deleteMany({
+    where: { guestId },
+  });
+
+  return { migrated: migratedCount };
+};
+
 export const FavoriteServices = {
   toggleFavorite,
   getFavorites,
+  migrateGuestFavoritesToUser,
 };

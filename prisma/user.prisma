@@ -8,7 +8,6 @@ model User {
   role        UserRoleEnum @default(USER)
 
   status     UserStatus @default(ACTIVE)
-  clientInfo Json?
 
   describe String?
   city     String?

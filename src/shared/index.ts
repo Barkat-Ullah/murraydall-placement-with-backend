@@ -21,6 +21,7 @@ export const setupMiddlewares = (app: Application): void => {
         'http://localhost:3000',
         'https://murraydall-dashboard.vercel.app',
       ],
+      // methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: [
         'Content-Type',
         'Authorization',

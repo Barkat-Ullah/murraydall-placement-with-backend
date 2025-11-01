@@ -19,5 +19,14 @@ router.post(
   auth(UserRoleEnum.ADMIN),
   SubcategoryController.createSubcategory,
 );
+router.patch(
+  '/:id',
+  upload.single('image'),
+  auth(UserRoleEnum.ADMIN),
+  SubcategoryController.updateSubCategory,
+);
+
+router.delete("/:id",SubcategoryController.deleteSubCategory)
+router.delete("/soft/:id",SubcategoryController.softDeleteSubCategory)
 
 export const SubcategoryRoutes = router;

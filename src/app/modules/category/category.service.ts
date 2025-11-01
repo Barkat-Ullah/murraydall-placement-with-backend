@@ -17,7 +17,10 @@ const getSubcategoriesByCategory = async (categoryType: string) => {
   }
 
   const subcategories = await prisma.subcategory.findMany({
-    where: { categoryType: categoryType as CategoryTypePlace },
+    where: {
+      categoryType: categoryType as CategoryTypePlace,
+      isDeleted: false,
+    },
     select: {
       id: true,
       name: true,
@@ -25,6 +28,7 @@ const getSubcategoriesByCategory = async (categoryType: string) => {
       description: true,
       isPremium: true,
       premiumPrice: true,
+      isDeleted:true
     },
     orderBy: { createdAt: 'asc' },
   });
